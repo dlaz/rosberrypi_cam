@@ -10,15 +10,26 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <std_msgs/Header.h>
 #include <camera_info_manager/camera_info_manager.h>
+#include <boost/unordered_map.hpp>
 
 using namespace raspicam;
 
+boost::unordered_map<std::string, int> color_mode_map;
 
 int main(int argc, char **argv) {
+    color_mode_map["mono8"] = CV_8UC1;
+    color_mode_map["rgb8"] = CV_8UC3;
     ros::init(argc, argv, "rosberrypi_cam");
     ros::NodeHandle nh("~");
     RaspiCam_Cv camera_cv;
     camera_cv.set(CV_CAP_PROP_FORMAT, CV_8UC1);
+    int fps;
+    std::string color_mode;
+    nh.param("fps", fps, 10);
+	nh.param<std::string>("color_mode", color_mode, "rgb8");
+	
+    camera_cv.set(CV_CAP_PROP_FORMAT, color_mode_map[color_mode]);
+    camera_cv.set(CV_CAP_PROP_FPS, fps);
     if(!camera_cv.open())
         ROS_ERROR("Error opening camera");
     sleep(3);
@@ -27,14 +38,13 @@ int main(int argc, char **argv) {
 
     std::string camera_info_url;
     nh.param<std::string>("camera_info_url", camera_info_url, "");
+	
     image_transport::ImageTransport it(nh);
     image_transport::CameraPublisher pub = it.advertiseCamera("image_raw", 1);
     std::string camera_name = nh.getNamespace();
     camera_info_manager::CameraInfoManager cinfo_(nh, camera_name);
 
-    int timeout = camera_cv.get(CV_CAP_PROP_EXPOSURE);
-    std::cout << 1./timeout << std::endl;
-    ros::Rate rate(10);
+    ros::Rate rate(fps);
     while(ros::ok()) {
         camera_cv.grab();
         camera_cv.retrieve(cv_img);
@@ -43,7 +53,7 @@ int main(int argc, char **argv) {
         sensor_msgs::CameraInfo ci = cinfo_.getCameraInfo();
         imgmsg.header.frame_id = camera_name + "_optical_frame";
         ci.header.frame_id = imgmsg.header.frame_id;
-        imgmsg.encoding = "mono8";
+        imgmsg.encoding = color_mode;
         imgmsg.image = cv_img;
         pub.publish(*imgmsg.toImageMsg(), ci, ros::Time::now());
         rate.sleep();

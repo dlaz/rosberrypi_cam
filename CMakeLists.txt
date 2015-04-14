@@ -6,11 +6,13 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(raspicam REQUIRED)
 find_package(OpenCV)
+find_package(Boost REQUIRED COMPONENTS system)
 
 catkin_package()
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIR}
 )
 
 ## Declare a cpp executable
@@ -19,7 +21,9 @@ target_link_libraries(rosberrypi_cam_node
   ${raspicam_LIBS}
   ${raspicam_CV_LIBS}
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES})
+  ${OpenCV_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
 
 install(TARGETS
   rosberrypi_cam_node
